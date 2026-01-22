@@ -14,28 +14,27 @@
         input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
         button { width: 100%; padding: 14px; margin-top: 10px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn-primary { background: var(--primary); color: white; }
-        .btn-success { background: var(--success); color: white; }
         .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
         .btn-back { background: #6c757d; color: white; margin-top: 20px; }
         .student-card { background: #fff; border-left: 5px solid var(--success); padding: 15px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
         #reader { width: 100%; border-radius: 8px; overflow: hidden; margin-top: 10px; }
-        .error-msg { color: red; text-align: center; display: none; margin-top: 10px;}
+        .btn-release { width: auto; padding: 8px 16px; font-size: 14px; background: #dc3545; color: white; }
     </style>
 </head>
 <body>
 
     <div id="screen-home" class="screen active">
         <h1>🏫 TôNaPorta</h1>
-        <p style="text-align:center; color:#666;">Selecione seu perfil:</p>
+        <p style="text-align:center;">Bem-vindo(a)</p>
         <button class="btn-primary" onclick="showScreen('screen-parent')">👨‍👩‍👧 Sou Responsável</button>
         <button class="btn-outline" onclick="showScreen('screen-teacher')">👩‍🏫 Sou Escola</button>
     </div>
 
     <div id="screen-parent" class="screen">
         <h2>Identificação</h2>
-        <p style="font-size: 12px; color: #666; text-align:center">Digite o nome conforme cadastro na secretaria.</p>
         <input type="text" id="p_name" placeholder="Nome do Aluno(a)">
-        <input type="tel" id="p_pin" placeholder="Sua Senha Pessoal">
+        <input type="text" id="p_class" placeholder="Turma (Ex: 1A)">
+        <input type="tel" id="p_pin" placeholder="Senha da Escola">
         <button class="btn-primary" onclick="startScanner()">📸 Abrir Câmera</button>
         <button class="btn-back" onclick="showScreen('screen-home')">Voltar</button>
     </div>
@@ -43,121 +42,8 @@
     <div id="screen-scan" class="screen">
         <h2>Aponte para o QR Code</h2>
         <div id="reader"></div>
-        <p id="loading-msg" style="text-align:center; display:none">Validando senha...</p>
         <button class="btn-back" onclick="stopScanner()">Cancelar</button>
     </div>
 
     <div id="screen-success" class="screen">
-        <h1 style="color:var(--success)">✅ Pronto!</h1>
-        <p style="text-align:center;">A professora foi avisada.<br>Aguarde a criança no portão.</p>
-        <button class="btn-primary" onclick="location.reload()">Início</button>
-    </div>
-
-    <div id="screen-teacher" class="screen">
-        <h2>📢 Solicitações de Saída</h2>
-        <div id="teacher-list">
-            <p style="text-align:center">Carregando...</p>
-        </div>
-        <button class="btn-back" onclick="showScreen('screen-home')">Sair</button>
-    </div>
-
-    <script>
-        // --- COLOQUE SUA URL AQUI ---
-        const API_URL = 'COLE_SUA_URL_AQUI'; 
-        // ----------------------------
-        
-        const QR_CODE_VALIDO = 'ESCOLA_PORTAO_OFICIAL'; 
-        let html5QrCode;
-
-        function showScreen(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            
-            if (id === 'screen-teacher') {
-                carregarLista();
-                window.teacherInterval = setInterval(carregarLista, 5000); 
-            } else {
-                if (window.teacherInterval) clearInterval(window.teacherInterval);
-            }
-        }
-
-        function startScanner() {
-            const nome = document.getElementById('p_name').value;
-            const pin = document.getElementById('p_pin').value;
-
-            if (!nome || !pin) return alert("Preencha nome e senha!");
-            
-            // Não checamos senha aqui mais. Checamos no servidor depois de ler o QR Code.
-
-            showScreen('screen-scan');
-            
-            html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: 250 },
-                (decodedText) => {
-                    if (decodedText === QR_CODE_VALIDO) {
-                        html5QrCode.stop();
-                        enviarAviso(nome, pin);
-                    }
-                },
-                (errorMessage) => {}
-            );
-        }
-
-        function stopScanner() {
-            if(html5QrCode) html5QrCode.stop();
-            showScreen('screen-parent');
-        }
-
-        function enviarAviso(nome, senha) {
-            document.getElementById('loading-msg').style.display = 'block';
-            
-            fetch(API_URL, {
-                method: 'POST',
-                mode: 'no-cors', // Atenção: com no-cors não conseguimos ler a resposta de erro
-                body: JSON.stringify({ nome: nome, senha: senha })
-            }).then(() => {
-                // Como usamos no-cors para evitar problemas no Google, assumimos sucesso
-                // Se a senha estiver errada, o Google não grava, mas o app vai mostrar Sucesso
-                // Para corrigir isso 100%, precisaríamos de uma configuração mais complexa.
-                // NESTA VERSÃO SIMPLIFICADA: O app avisa sucesso, mas se a senha estiver errada, o nome NÃO aparece na lista da prof.
-                showScreen('screen-success');
-            }).catch(err => alert("Erro de conexão."));
-        }
-
-        // --- PROFESSOR ---
-        async function carregarLista() {
-            try {
-                const response = await fetch(API_URL + '?action=read');
-                const data = await response.json();
-                const lista = document.getElementById('teacher-list');
-                lista.innerHTML = '';
-                
-                if (data.length === 0) {
-                    lista.innerHTML = '<p style="text-align:center;color:#999">Nenhum aluno aguardando.</p>';
-                    return;
-                }
-
-                data.forEach(aluno => {
-                    lista.innerHTML += `
-                        <div class="student-card">
-                            <div class="student-info">
-                                <h3>${aluno.nome}</h3>
-                                <p>${aluno.turma}</p>
-                            </div>
-                            <button class="btn-release" onclick="liberarAluno(${aluno.row})">Liberar</button>
-                        </div>
-                    `;
-                });
-            } catch (e) { console.error(e); }
-        }
-
-        async function liberarAluno(row) {
-            if(!confirm("O aluno já foi entregue ao responsável?")) return;
-            await fetch(API_URL + `?action=complete&row=${row}`);
-            carregarLista(); 
-        }
-    </script>
-</body>
-</html>
+        <h1 style
