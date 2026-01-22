@@ -3,130 +3,161 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Escola Segura</title>
+    <title>Escola Segura - TôNaPorta</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
-        body { font-family: sans-serif; background: #f4f4f9; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .screen { display: none; width: 100%; max-width: 400px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        :root { --primary: #0056b3; --success: #28a745; --bg: #f0f2f5; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .screen { display: none; width: 100%; max-width: 400px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); box-sizing: border-box; }
         .active { display: block; }
-        input, button { width: 100%; padding: 15px; margin: 10px 0; border-radius: 5px; border: 1px solid #ddd; box-sizing: border-box; }
-        button { font-size: 16px; font-weight: bold; cursor: pointer; border: none; }
-        .btn-blue { background: #007bff; color: white; }
-        .btn-green { background: #28a745; color: white; }
-        .btn-outline { background: white; border: 2px solid #007bff; color: #007bff; }
-        .card-aluno { border-left: 5px solid #28a745; background: #fff; padding: 15px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        #reader { width: 100%; margin-top: 10px; }
+        h1, h2 { text-align: center; color: #333; margin-top: 0; }
+        input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 14px; margin-top: 10px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
+        .btn-back { background: #6c757d; color: white; margin-top: 20px; }
+        .student-card { background: #fff; border-left: 5px solid var(--success); padding: 15px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+        #reader { width: 100%; border-radius: 8px; overflow: hidden; margin-top: 10px; }
+        .error-msg { color: red; text-align: center; display: none; margin-top: 10px;}
     </style>
 </head>
 <body>
 
-    <div id="home" class="screen active">
-        <h2 style="text-align:center">🏫 TôNaPorta</h2>
-        <button class="btn-blue" onclick="mudarTela('pais')">Sou Responsável</button>
-        <button class="btn-outline" onclick="mudarTela('escola')">Sou Escola</button>
+    <div id="screen-home" class="screen active">
+        <h1>🏫 TôNaPorta</h1>
+        <p style="text-align:center; color:#666;">Selecione seu perfil:</p>
+        <button class="btn-primary" onclick="showScreen('screen-parent')">👨‍👩‍👧 Sou Responsável</button>
+        <button class="btn-outline" onclick="showScreen('screen-teacher')">👩‍🏫 Sou Escola</button>
     </div>
 
-    <div id="pais" class="screen">
-        <h3>Identificação</h3>
-        <input type="text" id="nome" placeholder="Nome do Aluno">
-        <input type="text" id="turma" placeholder="Turma">
-        <input type="tel" id="senha" placeholder="Senha da Escola (1234)">
-        <button class="btn-green" onclick="abrirCamera()">📸 Escanear QR Code</button>
-        <button onclick="mudarTela('home')">Voltar</button>
+    <div id="screen-parent" class="screen">
+        <h2>Identificação</h2>
+        <p style="font-size: 12px; color: #666; text-align:center">Digite o nome conforme cadastro na secretaria.</p>
+        <input type="text" id="p_name" placeholder="Nome do Aluno(a)">
+        <input type="tel" id="p_pin" placeholder="Sua Senha Pessoal">
+        <button class="btn-primary" onclick="startScanner()">📸 Abrir Câmera</button>
+        <button class="btn-back" onclick="showScreen('screen-home')">Voltar</button>
     </div>
 
-    <div id="camera" class="screen">
-        <h3>Aponte para o QR Code</h3>
+    <div id="screen-scan" class="screen">
+        <h2>Aponte para o QR Code</h2>
         <div id="reader"></div>
-        <button onclick="fecharCamera()">Cancelar</button>
+        <p id="loading-msg" style="text-align:center; display:none">Validando senha...</p>
+        <button class="btn-back" onclick="stopScanner()">Cancelar</button>
     </div>
 
-    <div id="sucesso" class="screen">
-        <h1 style="color:green; text-align:center">✅ Avisado!</h1>
-        <p style="text-align:center">A professora recebeu o alerta.</p>
-        <button class="btn-blue" onclick="location.reload()">Início</button>
+    <div id="screen-success" class="screen">
+        <h1 style="color:var(--success)">✅ Pronto!</h1>
+        <p style="text-align:center;">A professora foi avisada.<br>Aguarde a criança no portão.</p>
+        <button class="btn-primary" onclick="location.reload()">Início</button>
     </div>
 
-    <div id="escola" class="screen">
-        <h3>📢 Alunos para Liberar</h3>
-        <div id="lista-alunos">Carregando...</div>
-        <button onclick="mudarTela('home')">Sair</button>
+    <div id="screen-teacher" class="screen">
+        <h2>📢 Solicitações de Saída</h2>
+        <div id="teacher-list">
+            <p style="text-align:center">Carregando...</p>
+        </div>
+        <button class="btn-back" onclick="showScreen('screen-home')">Sair</button>
     </div>
 
     <script>
-        // --- COLE SEU LINK AQUI EMBAIXO ---
-        const API_URL = 'https://script.google.com/macros/s/AKfycbxiGBoK7SYyQ887aKY9RqOh18I7NLtSr11jLC9PlleXTmA7zi3AABqNW0KaGAq7GOqS/exec'; 
-        // ----------------------------------
+        // --- COLOQUE SUA URL AQUI ---
+        const API_URL = 'COLE_SUA_URL_AQUI'; 
+        // ----------------------------
+        
+        const QR_CODE_VALIDO = 'ESCOLA_PORTAO_OFICIAL'; 
+        let html5QrCode;
 
-        let scanner;
-
-        function mudarTela(id) {
+        function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
-            if(id === 'escola') carregarLista();
-        }
-
-        function abrirCamera() {
-            const senha = document.getElementById('senha').value;
-            if(senha !== '1234') return alert('Senha incorreta!');
-            if(!document.getElementById('nome').value) return alert('Preencha o nome!');
-
-            mudarTela('camera');
-            scanner = new Html5Qrcode("reader");
-            scanner.start({ facingMode: "environment" }, { fps: 10 }, 
-                (texto) => {
-                    if(texto === 'ESCOLA_PORTAO_OFICIAL') {
-                        scanner.stop();
-                        enviarAviso();
-                    }
-                }, () => {});
-        }
-
-        function fecharCamera() {
-            if(scanner) scanner.stop();
-            mudarTela('pais');
-        }
-
-        function enviarAviso() {
-            const dados = {
-                nome: document.getElementById('nome').value,
-                turma: document.getElementById('turma').value
-            };
-            fetch(API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(dados) })
-            .then(() => mudarTela('sucesso'))
-            .catch(() => alert('Erro de conexão'));
-        }
-
-        async function carregarLista() {
-            const div = document.getElementById('lista-alunos');
-            div.innerHTML = 'Atualizando...';
-            try {
-                const res = await fetch(API_URL + '?action=read');
-                const alunos = await res.json();
-                div.innerHTML = '';
-                if(alunos.length === 0) div.innerHTML = '<p>Ninguém aguardando.</p>';
-                
-                alunos.forEach(a => {
-                    div.innerHTML += `
-                        <div class="card-aluno">
-                            <strong>${a.nome}</strong> (${a.turma})<br>
-                            <button onclick="liberar(${a.row})" style="margin-top:5px; background:#dc3545; color:white; padding:5px;">Liberar Saída</button>
-                        </div>`;
-                });
-            } catch(e) { console.log(e); }
             
-            // Atualiza sozinho a cada 5 segundos se estiver na tela da escola
-            if(document.getElementById('escola').classList.contains('active')) {
-                setTimeout(carregarLista, 5000);
+            if (id === 'screen-teacher') {
+                carregarLista();
+                window.teacherInterval = setInterval(carregarLista, 5000); 
+            } else {
+                if (window.teacherInterval) clearInterval(window.teacherInterval);
             }
         }
 
-        async function liberar(linha) {
-            if(!confirm('O aluno já saiu?')) return;
-            await fetch(API_URL + `?action=complete&row=${linha}`);
-            carregarLista();
+        function startScanner() {
+            const nome = document.getElementById('p_name').value;
+            const pin = document.getElementById('p_pin').value;
+
+            if (!nome || !pin) return alert("Preencha nome e senha!");
+            
+            // Não checamos senha aqui mais. Checamos no servidor depois de ler o QR Code.
+
+            showScreen('screen-scan');
+            
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: 250 },
+                (decodedText) => {
+                    if (decodedText === QR_CODE_VALIDO) {
+                        html5QrCode.stop();
+                        enviarAviso(nome, pin);
+                    }
+                },
+                (errorMessage) => {}
+            );
+        }
+
+        function stopScanner() {
+            if(html5QrCode) html5QrCode.stop();
+            showScreen('screen-parent');
+        }
+
+        function enviarAviso(nome, senha) {
+            document.getElementById('loading-msg').style.display = 'block';
+            
+            fetch(API_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Atenção: com no-cors não conseguimos ler a resposta de erro
+                body: JSON.stringify({ nome: nome, senha: senha })
+            }).then(() => {
+                // Como usamos no-cors para evitar problemas no Google, assumimos sucesso
+                // Se a senha estiver errada, o Google não grava, mas o app vai mostrar Sucesso
+                // Para corrigir isso 100%, precisaríamos de uma configuração mais complexa.
+                // NESTA VERSÃO SIMPLIFICADA: O app avisa sucesso, mas se a senha estiver errada, o nome NÃO aparece na lista da prof.
+                showScreen('screen-success');
+            }).catch(err => alert("Erro de conexão."));
+        }
+
+        // --- PROFESSOR ---
+        async function carregarLista() {
+            try {
+                const response = await fetch(API_URL + '?action=read');
+                const data = await response.json();
+                const lista = document.getElementById('teacher-list');
+                lista.innerHTML = '';
+                
+                if (data.length === 0) {
+                    lista.innerHTML = '<p style="text-align:center;color:#999">Nenhum aluno aguardando.</p>';
+                    return;
+                }
+
+                data.forEach(aluno => {
+                    lista.innerHTML += `
+                        <div class="student-card">
+                            <div class="student-info">
+                                <h3>${aluno.nome}</h3>
+                                <p>${aluno.turma}</p>
+                            </div>
+                            <button class="btn-release" onclick="liberarAluno(${aluno.row})">Liberar</button>
+                        </div>
+                    `;
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        async function liberarAluno(row) {
+            if(!confirm("O aluno já foi entregue ao responsável?")) return;
+            await fetch(API_URL + `?action=complete&row=${row}`);
+            carregarLista(); 
         }
     </script>
 </body>
 </html>
-
