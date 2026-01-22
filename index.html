@@ -46,4 +46,90 @@
     </div>
 
     <div id="screen-success" class="screen">
-        <h1 style
+        <h1 style="color:var(--success)">✅ Sucesso!</h1>
+        <p style="text-align:center;">A professora foi avisada.</p>
+        <button class="btn-primary" onclick="location.reload()">Novo Aviso</button>
+    </div>
+
+    <div id="screen-teacher" class="screen">
+        <h2>📢 Solicitações</h2>
+        <div id="teacher-list"><p>Carregando...</p></div>
+        <button class="btn-back" onclick="showScreen('screen-home')">Sair</button>
+    </div>
+
+    <script>
+        // --- SEU ENDEREÇO JÁ ESTÁ AQUI ---
+        const API_URL = 'https://script.google.com/macros/s/AKfycbxiGBoK7SYyQ887aKY9RqOh18I7NLtSr11jLC9PlleXTmA7zi3AABqNW0KaGAq7GOqS/exec'; 
+        // ---------------------------------
+
+        const SENHA_GERAL = '1234'; 
+        let html5QrCode;
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if (id === 'screen-teacher') {
+                carregarLista();
+                window.teacherInterval = setInterval(carregarLista, 5000);
+            } else {
+                if(window.teacherInterval) clearInterval(window.teacherInterval);
+            }
+        }
+
+        function startScanner() {
+            const nome = document.getElementById('p_name').value;
+            const turma = document.getElementById('p_class').value;
+            const pin = document.getElementById('p_pin').value;
+
+            if (!nome || !turma) return alert("Preencha todos os dados!");
+            if (pin !== SENHA_GERAL) return alert("Senha da escola incorreta!");
+
+            showScreen('screen-scan');
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 },
+                (decodedText) => {
+                    if (decodedText === 'ESCOLA_PORTAO_OFICIAL') {
+                        html5QrCode.stop();
+                        enviarAviso(nome, turma);
+                    }
+                }, () => {});
+        }
+
+        function stopScanner() {
+            if(html5QrCode) html5QrCode.stop();
+            showScreen('screen-parent');
+        }
+
+        function enviarAviso(nome, turma) {
+            fetch(API_URL, {
+                method: 'POST', mode: 'no-cors',
+                body: JSON.stringify({ nome: nome, turma: turma })
+            }).then(() => showScreen('screen-success'))
+              .catch(() => alert("Erro ao enviar"));
+        }
+
+        async function carregarLista() {
+            try {
+                const res = await fetch(API_URL + '?action=read');
+                const data = await res.json();
+                const list = document.getElementById('teacher-list');
+                list.innerHTML = '';
+                if(data.length === 0) list.innerHTML = '<p style="text-align:center">Fila vazia.</p>';
+                data.forEach(aluno => {
+                    list.innerHTML += `
+                        <div class="student-card">
+                            <div><b>${aluno.nome}</b><br><small>${aluno.turma}</small></div>
+                            <button class="btn-release" onclick="liberar(${aluno.row})">Liberar</button>
+                        </div>`;
+                });
+            } catch(e) {}
+        }
+
+        async function liberar(row) {
+            if(!confirm("Já saiu?")) return;
+            await fetch(API_URL + `?action=complete&row=${row}`);
+            carregarLista();
+        }
+    </script>
+</body>
+</html>
